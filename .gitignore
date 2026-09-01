@@ -1,0 +1,27 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# cocotb / Verilator build + sim artifacts
+sim_build/
+tb/sim_build/
+results.xml
+*.vcd
+*.fst
+*.vcd.hier
+
+# Vivado
+*.jou
+*.log
+.Xil/
+vivado*.str
+*.cache/
+*.runs/
+*.hw/
+*.ip_user_files/
+
+# Editor / OS
+.vscode/
+*.swp
+.DS_Store
