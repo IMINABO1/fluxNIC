@@ -26,11 +26,11 @@ module fluxnic_top #(
     input  var logic                s_tvalid,
     output var logic                s_tready,
 
-    input  var logic [7:0]          dflt_action,
+    input  var logic [31:0]         dflt_action,
     input  var logic                ins_valid,
     input  var logic [31:0]         ins_ip_dst,
     input  var logic [15:0]         ins_udp_dport,
-    input  var logic [7:0]          ins_action,
+    input  var logic [31:0]         ins_action,
 
     output var logic [DATA_W-1:0]   m_tdata,
     output var logic [DATA_W/8-1:0] m_tkeep,
@@ -74,12 +74,14 @@ module fluxnic_top #(
     );
 
     // --- decision engine (snoops the same accepted beats) ---
-    logic       dec_valid;
-    logic       dec_hit;
-    logic       dec_drop;
-    logic [2:0] dec_out_port;
-    logic       dec_count_en;
-    logic       dec_timestamp;
+    logic        dec_valid;
+    logic        dec_hit;
+    logic        dec_drop;
+    logic [2:0]  dec_out_port;
+    logic        dec_count_en;
+    logic        dec_timestamp;
+    logic        dec_rewrite_dport;
+    logic [15:0] dec_new_dport;
 
     match_action #(.DATA_W(DATA_W), .ENTRIES(ENTRIES)) u_ma (
         .clk,
@@ -88,7 +90,7 @@ module fluxnic_top #(
         .s_tkeep,
         .s_tlast,
         .s_tvalid,
-        .s_tready     (in_ready),
+        .s_tready         (in_ready),
         .dflt_action,
         .ins_valid,
         .ins_ip_dst,
@@ -100,22 +102,25 @@ module fluxnic_top #(
         .dec_out_port,
         .dec_count_en,
         .dec_timestamp,
+        .dec_rewrite_dport,
+        .dec_new_dport,
         .stat_pkts,
         .stat_hits,
         .stat_drops
     );
 
-    // --- decision FIFO: {out_port[2:0], drop} per packet, in order ---
-    logic       dec_pop;
-    logic [3:0] dec_head;
-    logic       dec_empty;
-    logic       dec_full;
+    // --- decision FIFO: {new_dport[15:0], rewrite, out_port[2:0], drop} in order ---
+    localparam int DEC_W = 16 + 1 + 3 + 1;
+    logic             dec_pop;
+    logic [DEC_W-1:0] dec_head;
+    logic             dec_empty;
+    logic             dec_full;
 
-    sync_fifo #(.WIDTH(4), .DEPTH(DEC_DEPTH)) u_dec_fifo (
+    sync_fifo #(.WIDTH(DEC_W), .DEPTH(DEC_DEPTH)) u_dec_fifo (
         .clk,
         .rst_n,
         .wr_en   (dec_valid),
-        .wr_data ({dec_out_port, dec_drop}),
+        .wr_data ({dec_new_dport, dec_rewrite_dport, dec_out_port, dec_drop}),
         .full    (dec_full),
         .rd_en   (dec_pop),
         .rd_data (dec_head),
@@ -125,22 +130,32 @@ module fluxnic_top #(
 
     // --- egress FSM ---
     typedef enum logic [1:0] {IDLE, FWD, DROP} state_t;
-    state_t     state;
-    logic [2:0] cur_port;
+    state_t      state;
+    logic [2:0]  cur_port;
+    logic        cur_rewrite;
+    logic [15:0] cur_newport;
+    logic [2:0]  word_idx;      // word within the packet being forwarded
 
-    logic df_drop;
-    logic [2:0] df_port;
-    assign df_drop = dec_head[0];
-    assign df_port = dec_head[3:1];
+    logic        df_drop;
+    logic [2:0]  df_port;
+    logic        df_rewrite;
+    logic [15:0] df_newport;
+    assign df_drop    = dec_head[0];
+    assign df_port    = dec_head[3:1];
+    assign df_rewrite = dec_head[4];
+    assign df_newport = dec_head[20:5];
+
+    // UDP dst port lives in bytes 36-37 = word 4, bits [47:32] (network order).
+    localparam int UDP_DPORT_WORD = 4;
 
     always_comb begin
-        m_tvalid   = 1'b0;
-        pf_tready  = 1'b0;
-        dec_pop    = 1'b0;
-        m_tdata    = pf_tdata;
-        m_tkeep    = pf_tkeep;
-        m_tlast    = pf_tlast;
-        m_tdest    = cur_port;
+        m_tvalid  = 1'b0;
+        pf_tready = 1'b0;
+        dec_pop   = 1'b0;
+        m_tdata   = pf_tdata;
+        m_tkeep   = pf_tkeep;
+        m_tlast   = pf_tlast;
+        m_tdest   = cur_port;
 
         case (state)
             IDLE: begin
@@ -151,6 +166,10 @@ module fluxnic_top #(
                 m_tvalid  = pf_tvalid;
                 pf_tready = m_tready;
                 m_tdest   = cur_port;
+                if (cur_rewrite && word_idx == UDP_DPORT_WORD[2:0]) begin
+                    m_tdata[39:32] = cur_newport[15:8];  // byte 36
+                    m_tdata[47:40] = cur_newport[7:0];   // byte 37
+                end
             end
             DROP: begin
                 pf_tready = pf_tvalid;  // consume and discard
@@ -163,19 +182,29 @@ module fluxnic_top #(
         if (!rst_n) begin
             state          <= IDLE;
             cur_port       <= '0;
+            cur_rewrite    <= 1'b0;
+            cur_newport    <= '0;
+            word_idx       <= '0;
             stat_forwarded <= '0;
         end else begin
             case (state)
                 IDLE: begin
                     if (!dec_empty && pf_tvalid) begin
-                        cur_port <= df_port;
-                        state    <= df_drop ? DROP : FWD;
+                        cur_port    <= df_port;
+                        cur_rewrite <= df_rewrite;
+                        cur_newport <= df_newport;
+                        word_idx    <= '0;
+                        state       <= df_drop ? DROP : FWD;
                     end
                 end
                 FWD: begin
-                    if (pf_tvalid && m_tready && pf_tlast) begin
-                        stat_forwarded <= stat_forwarded + 32'd1;
-                        state          <= IDLE;
+                    if (pf_tvalid && m_tready) begin
+                        if (word_idx != 3'd7)
+                            word_idx <= word_idx + 3'd1;
+                        if (pf_tlast) begin
+                            stat_forwarded <= stat_forwarded + 32'd1;
+                            state          <= IDLE;
+                        end
                     end
                 end
                 DROP: begin

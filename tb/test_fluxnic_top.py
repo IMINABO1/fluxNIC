@@ -1,4 +1,5 @@
 import random
+import struct
 
 import cocotb
 from cocotb.clock import Clock
@@ -11,6 +12,10 @@ DROP = 0x01
 
 def fwd(port):
     return (port << 1) & 0x0E  # drop=0, out_port=port
+
+
+def fwd_rewrite(port, new_dport):
+    return (port << 1) | (1 << 6) | (new_dport << 16)  # + rewrite UDP dport
 
 
 async def reset(dut):
@@ -117,3 +122,29 @@ async def forwards_hits_drops_misses(dut):
     assert int(dut.stat_hits.value) == 3
     assert int(dut.stat_drops.value) == 1
     assert int(dut.stat_forwarded.value) == 3
+
+
+@cocotb.test(timeout_time=300, timeout_unit="us")
+async def rewrites_udp_dport(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    await reset(dut)
+
+    await insert_rule(dut, ip_int("10.0.0.9"), 5001, fwd_rewrite(3, 7000))
+
+    frame = udp_ipv4_frame("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55",
+                           "10.0.0.1", "10.0.0.9", 3333, 5001, b"rewrite me")
+    expected = bytearray(frame)
+    expected[36:38] = struct.pack("!H", 7000)  # UDP dst port rewritten
+
+    out = []
+    cocotb.start_soon(recv(dut, out))
+    await send_frames(dut, [frame])
+    for _ in range(400):
+        if len(out) >= 1:
+            break
+        await RisingEdge(dut.clk)
+
+    assert len(out) == 1, "packet was not forwarded"
+    dest, data = out[0]
+    assert dest == 3, f"wrong egress port {dest}"
+    assert data == bytes(expected), "UDP dst port not rewritten correctly (or frame corrupted)"

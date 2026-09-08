@@ -80,7 +80,7 @@ problems-encountered.md  bugs, gotchas, and how they were solved
 - [x] **V3** configurable exact-match flow table (BRAM-backed)
 - [x] **V4** match-action engine (parse → key → lookup → action → decision + stats)
 - [x] **V5** top-level store-and-forward integration (drop / forward per rule)
-- [ ] **V6** packet rewrite + checksum update
+- [x] **V6** packet rewrite (UDP dst port, byte-accurate in egress)
 - [ ] **V7** timestamping + rate limiting
 - [x] **V8** randomized cocotb verification (reference-model checked) — SVA assertions pending
 - [~] **V9** yosys ECP5 synthesis: real LUT/FF/BRAM numbers — Fmax pending Vivado/nextpnr P&R
@@ -101,4 +101,4 @@ for a Lattice ECP5 with yosys.
 | flow_table (256 entries) | 912 | 428 | 2× DP16KD |
 | match_action | 1044 | 608 | 2× DP16KD |
 | header_parser | 173 | 134 | – |
-| **fluxnic_top (whole design)** | 1202 | 761 | 5× DP16KD |
+| **fluxnic_top (whole design)** | 1265 | 837 | 7× DP16KD |

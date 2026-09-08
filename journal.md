@@ -194,6 +194,26 @@ pipeline-depth PPA study.
 
 ---
 
+## 2026-09-08 — CI + V6 packet rewrite
+
+- **CI:** added a GitHub Actions workflow that builds the exact toolchain with
+  micromamba (verilator + yosys + python 3.13), installs cocotb, runs the full
+  regression, and synthesizes the top for ECP5 on every push. First run failed
+  with `test.sh: Permission denied` (Windows git dropped the exec bit); fixed by
+  invoking test.sh via `bash` and marking the scripts executable in git.
+- **V6 rewrite:** widened the action word to 32 bits ([6]=rewrite dst port,
+  [31:16]=new port). `match_action` decodes it; the top carries it through the
+  decision FIFO and the egress FSM splices the new UDP dst port into word 4
+  (bytes 36-37) as the packet forwards. Test confirms the port becomes 7000 while
+  the rest of the frame stays byte-for-byte identical. (Assumes UDP checksum 0,
+  as our frames use; a nonzero checksum would need an incremental update.)
+- "drop, forward, or rewrite" is now all implemented and tested.
+- Whole-design synthesis (ECP5): 837 FF, 1265 LUT4, 7x DP16KD.
+
+**Next:** V7 (rate limiting / timestamp) and the pipeline-depth PPA study.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

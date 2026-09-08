@@ -5,11 +5,13 @@
 // matched action into a per-packet decision. On a miss the configurable
 // dflt_action applies. Emits a 1-cycle decision strobe and maintains live stats.
 //
-// Action word layout (8 bits):
-//   [0]   drop
-//   [3:1] out_port
-//   [4]   count_en
-//   [5]   timestamp
+// Action word layout (32 bits):
+//   [0]     drop
+//   [3:1]   out_port
+//   [4]     count_en
+//   [5]     timestamp
+//   [6]     rewrite UDP dst port with [31:16]
+//   [31:16] new UDP dst port
 module match_action #(
     parameter int DATA_W  = 64,
     parameter int ENTRIES = 256
@@ -23,12 +25,12 @@ module match_action #(
     input  var logic                s_tvalid,
     input  var logic                s_tready,
 
-    input  var logic [7:0]          dflt_action,
+    input  var logic [31:0]         dflt_action,
 
     input  var logic                ins_valid,
     input  var logic [31:0]         ins_ip_dst,
     input  var logic [15:0]         ins_udp_dport,
-    input  var logic [7:0]          ins_action,
+    input  var logic [31:0]         ins_action,
 
     output var logic                dec_valid,
     output var logic                dec_hit,
@@ -36,6 +38,8 @@ module match_action #(
     output var logic [2:0]          dec_out_port,
     output var logic                dec_count_en,
     output var logic                dec_timestamp,
+    output var logic                dec_rewrite_dport,
+    output var logic [15:0]         dec_new_dport,
 
     output var logic [31:0]         stat_pkts,
     output var logic [31:0]         stat_hits,
@@ -77,10 +81,10 @@ module match_action #(
 
     logic             res_valid;
     logic             res_hit;
-    logic [7:0]       res_action;
+    logic [31:0]      res_action;
     logic             is_udp_r;
 
-    flow_table #(.KEY_W(KEY_W), .ACTION_W(8), .ENTRIES(ENTRIES)) u_table (
+    flow_table #(.KEY_W(KEY_W), .ACTION_W(32), .ENTRIES(ENTRIES)) u_table (
         .clk,
         .rst_n,
         .ins_valid,
@@ -98,17 +102,19 @@ module match_action #(
             is_udp_r <= is_udp;
     end
 
-    logic       eff_hit;
-    logic [7:0] action;
+    logic        eff_hit;
+    logic [31:0] action;
     assign eff_hit = res_hit && is_udp_r;
     assign action  = eff_hit ? res_action : dflt_action;
 
-    assign dec_valid     = res_valid;
-    assign dec_hit       = eff_hit;
-    assign dec_drop      = action[0];
-    assign dec_out_port  = action[3:1];
-    assign dec_count_en  = action[4];
-    assign dec_timestamp = action[5];
+    assign dec_valid        = res_valid;
+    assign dec_hit          = eff_hit;
+    assign dec_drop         = action[0];
+    assign dec_out_port     = action[3:1];
+    assign dec_count_en     = action[4];
+    assign dec_timestamp    = action[5];
+    assign dec_rewrite_dport = action[6];
+    assign dec_new_dport    = action[31:16];
 
     always_ff @(posedge clk) begin
         if (!rst_n) begin
