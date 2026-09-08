@@ -20,7 +20,7 @@ for entry in "${TESTS[@]}"; do
     read -r mod top <<< "$entry"
     if [ ! -f "$here/tb/${mod}.py" ]; then continue; fi
     echo "==================== $mod ($top) ===================="
-    if ! "$here/scripts/test.sh" "$mod" "$top"; then
+    if ! bash "$here/scripts/test.sh" "$mod" "$top"; then
         echo "FAILED: $mod"
         fails=$((fails+1))
     fi
