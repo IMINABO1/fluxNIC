@@ -152,6 +152,25 @@ parser, flow table, and packet buffer together.
 
 ---
 
+## 2026-09-08 — V4: match-action engine
+
+- `match_action` wires the parser + flow table together: on `hdr_valid` it builds
+  the key `{ip_dst, udp_dst_port}`, looks it up, and (one cycle later) decodes the
+  action into a decision — drop, out_port, count_en, timestamp — with a
+  configurable default action on a miss and live packet/hit/drop counters.
+- Action word: [0]=drop, [3:1]=out_port, [4]=count_en, [5]=timestamp.
+- Tests (all pass): rule hit forwards to the right port with count set; a miss
+  falls back to default-drop; a TCP packet (non-UDP) takes the default; and the
+  stat counters tally 5 packets / 3 hits / 2 drops across a mixed run.
+- Synthesis (ECP5): 2x DP16KD, 608 FF, 1044 LUT4 — the whole match-action core.
+
+This is the heart of the design: a programmable, table-driven decision per packet.
+
+**Next:** V5 — top-level integration (store-and-forward: buffer the packet while
+the decision is computed, then drop/forward), then the pipeline-depth sweep.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

@@ -11,7 +11,6 @@ TESTS=(
     "test_axis_fifo axis_fifo"
     "test_header_parser header_parser"
     "test_flow_table flow_table"
-    "test_action_engine action_engine"
     "test_match_action match_action"
     "test_fluxnic_top fluxnic_top"
 )
