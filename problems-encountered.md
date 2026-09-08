@@ -5,6 +5,24 @@ entry: what broke, why, and the fix — so the same wall is only hit once.
 
 ---
 
+## 2026-09-08 — cocotb: reading a signal right after RisingEdge is stale
+
+**Symptom:** `sync_fifo` tests failed with `count 0 != model 1` even though the
+RTL was correct (it synthesized fine and the logic was right).
+
+**Cause:** after `await RisingEdge(dut.clk)`, the simulator is *at* the edge.
+Registered outputs update there, but combinational outputs derived from them
+(`count`, `empty`, `full`) have not settled yet at the moment `.value` is read.
+So the testbench sampled pre-edge values.
+
+**Fix (the project idiom):** drive inputs, `await RisingEdge` to commit, then
+`await FallingEdge(dut.clk)` before sampling. The falling edge is a settled,
+stable point in the middle of the cycle. All testbenches sample outputs on the
+falling edge and drive inputs after it. (`await Timer(1, unit="ns")` or
+`await ReadOnly()` also work, but FallingEdge reads cleanest.)
+
+---
+
 ## 2026-09-08 — verilator/iverilog need sudo; installed via conda-forge instead
 
 **Symptom:** `apt install verilator gtkwave` requires a password; this is an

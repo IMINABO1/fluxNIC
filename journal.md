@@ -30,6 +30,26 @@ milestone ladder autonomously.
 
 ---
 
+## 2026-09-08 — V1a: synchronous FIFO
+
+- Wrote `sync_fifo` — parameterized (WIDTH, DEPTH), first-word-fall-through reads,
+  pointer-with-extra-MSB scheme for unambiguous full vs empty, live `count`.
+- Verified with 4 cocotb tests including a 2000-cycle randomized check against a
+  Python `deque` reference model (order, count, full/empty all match).
+- Hit the cocotb read-after-edge staleness gotcha; established the project idiom
+  of sampling on the falling edge (logged in `problems-encountered.md`).
+- Synthesis (ECP5): the 16-deep memory maps to distributed RAM
+  (`TRELLIS_DPR16X4`) — correct for a small FIFO; large buffers will want BRAM.
+
+**Concepts learned:** FWFT semantics; the extra-bit pointer trick; why a small
+FIFO becomes LUTRAM not BRAM; deterministic verification via a reference model.
+
+**Next:** V1b — AXI-Stream skid buffer. This is a real design fork (simple
+half-rate register slice vs. full skid buffer), so both will be tried and
+compared.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
