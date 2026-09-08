@@ -50,6 +50,25 @@ compared.
 
 ---
 
+## 2026-09-08 — V1b Option 1: register slice (forward-registered)
+
+- Wrote `axis_skid_buffer` as a simple register slice: registers tdata/tvalid,
+  but `s_tready` is combinational in `m_tready`.
+- Wrote a reusable AXI-Stream BFM (`tb/axis.py`) with randomized source idle and
+  sink backpressure; beats sampled in the ReadOnly phase to avoid driver races.
+- Tests pass: 500-word stream integrity under random backpressure, and full
+  one-word/cycle throughput.
+- Built `axis_slice_chain` (N buffers back-to-back) to measure how the critical
+  path scales, and `scripts/ltp.sh` (yosys `ltp -noff`, ECP5 cells).
+- **Measurement — Option 1, 8-stage chain:** longest path = **31 cells**;
+  72 flip-flops (9/stage). The ready path is combinational, so it ripples: the
+  path grows with chain depth. This is the number to beat with the skid buffer.
+
+**Next:** revert to Option 2 (full skid buffer, ready registered), re-measure,
+pick the winner.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
