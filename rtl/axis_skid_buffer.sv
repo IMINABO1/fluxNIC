@@ -1,10 +1,10 @@
 `default_nettype none
 
-// OPTION 2 (full skid buffer): registers BOTH the forward path (tdata/tvalid)
-// and the backward path (tready). A one-entry "skid" register catches the word
-// that arrives in the cycle ready deasserts, so no data is lost and one
-// word/cycle is sustained. Because s_tready is a register output, chaining these
-// does not let ready ripple -- the critical path stays flat with depth.
+// Full skid buffer: registers BOTH the forward path (tdata/tvalid) and the
+// backward path (tready). A one-entry "skid" register catches the word that
+// arrives in the cycle ready deasserts, so no data is lost and one word/cycle is
+// sustained. Because s_tready is a register output, chaining these does not let
+// ready ripple -- each stage's timing is independent of pipeline depth.
 module axis_skid_buffer #(
     parameter int DATA_W = 8
 ) (
