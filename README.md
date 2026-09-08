@@ -11,6 +11,9 @@ through an AXI-Lite control plane, giving a clean control-plane / data-plane spl
 No physical hardware required: everything is simulated and verified in software,
 then taken through Vivado synthesis, place-and-route, and timing closure.
 
+See [`docs/architecture.md`](docs/architecture.md) for the full design: parser,
+flow table, action-word format, egress FSM, verification, and synthesis results.
+
 ## Architecture (target)
 
 ```
