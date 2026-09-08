@@ -72,13 +72,31 @@ problems-encountered.md  bugs, gotchas, and how they were solved
 
 ## Milestones
 
-- [ ] **V0** counter + cocotb test (the sim loop)
-- [ ] **V1** sync FIFO + AXI-Stream skid buffer + backpressure
-- [ ] **V2** Ethernet / IPv4 / UDP parser
-- [ ] **V3** configurable exact-match flow table
-- [ ] **V4** match-action pipeline
-- [ ] **V5** packet rewrite + checksum
-- [ ] **V6** timestamping + counters + rate limiting
-- [ ] **V7** multi-stage, one word/cycle throughput
-- [ ] **V8** SVA assertions + randomized cocotb verification
-- [ ] **V9** Vivado synth + P&R + STA @ 250+ MHz
+- [x] **V0** counter + cocotb test (the sim loop)
+- [x] **V1** sync FIFO + AXI-Stream skid buffer + backpressure
+- [x] **V2** Ethernet / IPv4 / UDP header parser
+- [x] **V3** configurable exact-match flow table (BRAM-backed)
+- [x] **V4** match-action engine (parse → key → lookup → action → decision + stats)
+- [x] **V5** top-level store-and-forward integration (drop / forward per rule)
+- [ ] **V6** packet rewrite + checksum update
+- [ ] **V7** timestamping + rate limiting
+- [x] **V8** randomized cocotb verification (reference-model checked) — SVA assertions pending
+- [~] **V9** yosys ECP5 synthesis: real LUT/FF/BRAM numbers — Fmax pending Vivado/nextpnr P&R
+
+### Status
+
+The data plane works end to end in simulation: rules are loaded over the config
+port, packets stream in over AXI-Stream, matching packets are forwarded to the
+decided output port and non-matching packets are dropped, all under backpressure
+on both sides, with live packet/hit/drop/forward counters. Every module is
+verified with cocotb (several against Python reference models) and synthesizes
+for a Lattice ECP5 with yosys.
+
+### Measured resource usage (yosys, ECP5)
+
+| Module | LUT4 | FF | BRAM |
+|---|---|---|---|
+| flow_table (256 entries) | 912 | 428 | 2× DP16KD |
+| match_action | 1044 | 608 | 2× DP16KD |
+| header_parser | 173 | 134 | – |
+| **fluxnic_top (whole design)** | 1202 | 761 | 5× DP16KD |

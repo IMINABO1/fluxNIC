@@ -171,6 +171,29 @@ the decision is computed, then drop/forward), then the pipeline-depth sweep.
 
 ---
 
+## 2026-09-08 — V5: top-level integration (the data plane works)
+
+- `fluxnic_top` ties it together as store-and-forward: the packet buffers in an
+  `axis_fifo` while `match_action` computes its decision from the headers; the
+  decision (out_port + drop) is pushed to a small decision FIFO; an egress FSM
+  drains each packet in order and forwards it to the decided port or drops it.
+- Decisions stay aligned to packets because both FIFOs are strictly in order,
+  exactly one decision per packet.
+- **End-to-end test passes:** rules loaded via the config port, a mix of
+  matching/non-matching packets streamed with random backpressure on *both*
+  sides; matching packets come out intact on the right ports, misses are dropped,
+  and stat_pkts/hits/drops/forwarded all check out.
+- **Full regression: 23/23 tests pass** across all 8 modules.
+- **Whole-design synthesis (ECP5): 761 FF, 1202 LUT4, 5x DP16KD block RAMs.**
+
+The programmable data plane is real: load rules, stream packets, get per-packet
+drop/forward decisions at one word/cycle. This is the résumé project, working.
+
+**Next:** V6 — packet rewrite + checksum update; then SVA assertions and the
+pipeline-depth PPA study.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

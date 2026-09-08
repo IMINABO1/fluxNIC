@@ -37,6 +37,16 @@ def udp_ipv4_frame(dst_mac, src_mac, src_ip, dst_ip, src_port, dst_port,
     return eth + ip_hdr + l4
 
 
+def words_to_bytes(words, bus_bytes: int = 8):
+    """Inverse of to_words for [(tdata_int, tkeep_int)] beats."""
+    out = bytearray()
+    for data, keep in words:
+        for j in range(bus_bytes):
+            if keep & (1 << j):
+                out.append((data >> (8 * j)) & 0xFF)
+    return bytes(out)
+
+
 def to_words(data: bytes, bus_bytes: int = 8):
     """[(tdata_int, tkeep_int, tlast_bool)] with byte 0 in the lowest lane."""
     words = []
