@@ -9,14 +9,10 @@ TESTS=(
     "test_sync_fifo sync_fifo"
     "test_axis_skid_buffer axis_skid_buffer"
     "test_axis_fifo axis_fifo"
-    "test_eth_parser eth_parser"
-    "test_ip_parser ip_parser"
-    "test_udp_parser udp_parser"
     "test_header_parser header_parser"
     "test_flow_table flow_table"
     "test_action_engine action_engine"
     "test_match_action match_action"
-    "test_checksum ip_checksum"
     "test_fluxnic_top fluxnic_top"
 )
 

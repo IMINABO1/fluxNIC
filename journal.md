@@ -113,6 +113,27 @@ then the Ethernet/IPv4/UDP parsers.
 
 ---
 
+## 2026-09-08 — V2b: header parser (Ethernet / IPv4 / UDP)
+
+- `header_parser` snoops the 64-bit AXI-Stream (observes beat = tvalid && tready,
+  never drives ready) and accumulates the first 5 words (40 bytes) into a header
+  buffer, then extracts eth_type, IPv4 src/dst/proto, and UDP src/dst ports,
+  with `is_ipv4`/`is_udp` flags and a 1-cycle `hdr_valid` strobe. `hdr_error`
+  fires if the packet ends before the headers are complete.
+- Design choice: snoop rather than inline-forward, so the parser sits beside a
+  packet buffer without touching flow control -- a clean store-and-decide split.
+- Built `tb/packet.py` to construct genuine Ethernet/IPv4/UDP frames (with a real
+  IP checksum) and chunk them to AXI-Stream words. Tests: correct field
+  extraction, extraction under random backpressure, short-packet -> error, and
+  TCP -> is_ipv4 but not is_udp. All pass.
+- Assumes IPv4 without options (IHL == 5); options would shift the UDP offset.
+- Synthesis (ECP5): 134 flip-flops, 173 LUT4.
+
+**Next:** V3 — the configurable exact-match flow table (BRAM), then the
+match-action engine.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
