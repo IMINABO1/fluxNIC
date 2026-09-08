@@ -134,6 +134,24 @@ match-action engine.
 
 ---
 
+## 2026-09-08 — V3: exact-match flow table (BRAM)
+
+- `flow_table` is a direct-mapped hash table: 256 slots of {key, action} in block
+  RAM, plus a resettable 256-bit "occupied" vector in flip-flops so the whole
+  table clears in one cycle. XOR-fold hash -> slot; a hit needs occupied && exact
+  key match. One insert port, one lookup port, 1-cycle registered result.
+- Tests (all pass): insert->hit, miss-when-absent, overwrite-same-slot, and a
+  300-op randomized run against a Python direct-mapped model that replicates the
+  exact hash.
+- Had to rewrite the hash function in Verilog-2005 style for yosys (see problems).
+- **Synthesis (ECP5): 2x DP16KD block RAMs**, 428 FF, 912 LUT4 -- real evidence
+  that the flow table is BRAM-backed, as the design claims.
+
+**Next:** V4 — the action engine and the match-action pipeline that ties the
+parser, flow table, and packet buffer together.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

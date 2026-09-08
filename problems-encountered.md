@@ -5,6 +5,24 @@ entry: what broke, why, and the fix — so the same wall is only hit once.
 
 ---
 
+## 2026-09-08 — yosys frontend rejects SV that Verilator accepts
+
+**Symptom:** `flow_table` simulated fine in Verilator but yosys failed with
+`syntax error, unexpected TOK_ID` on a function body.
+
+**Cause:** yosys's built-in Verilog frontend is stricter than Verilator. It does
+not accept a `localparam` declared inside a function, a typed loop variable
+(`for (int i ...)`), or `return` in that context.
+
+**Fix:** write synthesizable functions in Verilog-2005 style — module-level
+localparams, a plain `integer` loop var, `for (i=0;i<N;i=i+1)`, and assign the
+result to the function name (`hashfn = h;`) instead of `return`.
+
+**Lesson:** a design must pass *both* tools. Simulate in Verilator, but synth in
+yosys as part of the same loop so frontend gaps surface immediately.
+
+---
+
 ## 2026-09-08 — AXI-Stream BFM sampled the handshake one cycle too late
 
 **Symptom:** the skid buffer's random-backpressure test hung forever (26 min of
