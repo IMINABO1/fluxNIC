@@ -231,6 +231,22 @@ pipeline-depth PPA study.
 
 ---
 
+## 2026-09-08 — AXI4-Lite control plane
+
+- Added `axil_regs` (AXI4-Lite slave) and `fluxnic_axil` (wraps it around the data
+  plane). Rules and the default action are written over AXI-Lite; the statistics
+  counters are read back over it. Register map documented in the module header.
+- Wrote an AXI-Lite master BFM (`tb/axil.py`) and tests: load a forward rule and
+  default-drop entirely over AXI-Lite, stream matching/non-matching packets, and
+  confirm forwarding + read stats back (3 pkts / 2 hits / 1 drop / 2 fwd); plus a
+  register write/read-back test. Both pass.
+- This makes the "loaded at runtime over an AXI-Lite control plane" claim real.
+- Synthesis (ECP5): 984 FF, 1463 LUT4, 7x DP16KD for the full AXI-Lite design.
+
+**Next:** optional SVA assertions; Fmax closure remains the Vivado milestone.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

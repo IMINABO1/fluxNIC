@@ -13,6 +13,7 @@ TESTS=(
     "test_flow_table flow_table"
     "test_match_action match_action"
     "test_fluxnic_top fluxnic_top"
+    "test_fluxnic_axil fluxnic_axil"
 )
 
 fails=0

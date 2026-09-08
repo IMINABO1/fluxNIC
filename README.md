@@ -84,18 +84,20 @@ problems-encountered.md  bugs, gotchas, and how they were solved
 - [x] **V4** match-action engine (parse → key → lookup → action → decision + stats)
 - [x] **V5** top-level store-and-forward integration (drop / forward per rule)
 - [x] **V6** packet rewrite (UDP dst port, byte-accurate in egress)
+- [x] **AXI4-Lite control plane** — load rules / default action, read stats at runtime
 - [ ] **V7** timestamping + rate limiting
 - [x] **V8** randomized cocotb verification (reference-model checked) — SVA assertions pending
 - [~] **V9** yosys ECP5 synthesis: real LUT/FF/BRAM numbers — Fmax pending Vivado/nextpnr P&R
 
 ### Status
 
-The data plane works end to end in simulation: rules are loaded over the config
-port, packets stream in over AXI-Stream, matching packets are forwarded to the
-decided output port and non-matching packets are dropped, all under backpressure
-on both sides, with live packet/hit/drop/forward counters. Every module is
-verified with cocotb (several against Python reference models) and synthesizes
-for a Lattice ECP5 with yosys.
+The data plane works end to end in simulation: rules and the default action are
+loaded at runtime over an **AXI4-Lite control plane** (`fluxnic_axil`), packets
+stream in over AXI-Stream, matching packets are forwarded to the decided output
+port (or have their UDP dst port rewritten) and non-matching packets are dropped,
+all under backpressure on both sides, with live packet/hit/drop/forward counters
+read back over AXI-Lite. Every module is verified with cocotb (several against
+Python reference models) and synthesizes for a Lattice ECP5 with yosys.
 
 ### Measured resource usage (yosys, ECP5)
 
@@ -104,4 +106,5 @@ for a Lattice ECP5 with yosys.
 | flow_table (256 entries) | 912 | 428 | 2× DP16KD |
 | match_action | 1044 | 608 | 2× DP16KD |
 | header_parser | 173 | 134 | – |
-| **fluxnic_top (whole design)** | 1265 | 837 | 7× DP16KD |
+| fluxnic_top (data plane) | 1265 | 837 | 7× DP16KD |
+| **fluxnic_axil (+ AXI-Lite control plane)** | 1463 | 984 | 7× DP16KD |

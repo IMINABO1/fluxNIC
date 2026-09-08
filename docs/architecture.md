@@ -29,8 +29,10 @@ one decision per packet, decisions stay aligned to packets without tags.
 
 - **Data path:** 64-bit AXI-Stream (`tdata`, `tkeep`, `tlast`, `tvalid`,
   `tready`) in and out. `m_tdest` carries the chosen output port.
-- **Config path:** `ins_valid`, `ins_ip_dst`, `ins_udp_dport`, `ins_action`
-  insert one rule per pulse. `dflt_action` is applied on a miss.
+- **Config path:** an **AXI4-Lite** slave (`axil_regs`, wrapped by `fluxnic_axil`)
+  loads rules and the default action and reads back the statistics counters at
+  runtime. Internally it drives a simple insert pulse (`ins_valid` + rule fields)
+  into the flow table. Register map is in `axil_regs.sv`.
 
 ## Header parser
 
