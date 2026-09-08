@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up EDA toolchain (verilator, yosys, python)
+        uses: mamba-org/setup-micromamba@v2
+        with:
+          environment-name: eda
+          create-args: >-
+            python=3.13
+            verilator
+            yosys
+          condarc: |
+            channels:
+              - conda-forge
+
+      - name: Install cocotb
+        shell: bash -el {0}
+        run: pip install cocotb==2.0.1
+
+      - name: Tool versions
+        shell: bash -el {0}
+        run: |
+          verilator --version
+          yosys --version | head -1
+          python -c "import cocotb; print('cocotb', cocotb.__version__)"
+
+      - name: Run cocotb regression
+        shell: bash -el {0}
+        run: bash scripts/regress.sh
+
+      - name: Synthesize top for ECP5 (resource check)
+        shell: bash -el {0}
+        run: bash scripts/synth.sh fluxnic_top

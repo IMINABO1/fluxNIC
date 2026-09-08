@@ -1,5 +1,7 @@
 # fluxNIC — Programmable FPGA Network Data Plane
 
+[![ci](https://github.com/IMINABO1/fluxNIC/actions/workflows/ci.yml/badge.svg)](https://github.com/IMINABO1/fluxNIC/actions/workflows/ci.yml)
+
 A low-latency, programmable packet-processing pipeline in SystemVerilog. Packets
 enter over AXI-Stream, get parsed (Ethernet / IPv4 / UDP), matched against a
 configurable flow table, and acted on — drop, forward, timestamp, or rewrite —
