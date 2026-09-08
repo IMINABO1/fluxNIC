@@ -102,6 +102,17 @@ then the Ethernet/IPv4/UDP parsers.
 
 ---
 
+## 2026-09-08 — V2a: AXI-Stream FIFO
+
+- `axis_fifo` packs {tlast, tkeep, tdata} into one `sync_fifo` (reusing the tested
+  primitive); `s_tready = !full`, `m_tvalid = !empty`, FWFT so no read latency.
+- Test: 400-item payload round-trip under random source idle + sink backpressure,
+  checking data, keep, and last all survive in order. Passes.
+
+**Next:** V2b — Ethernet / IPv4 / UDP header parsers over a 64-bit AXI-Stream.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
