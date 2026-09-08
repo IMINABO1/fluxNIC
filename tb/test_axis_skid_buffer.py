@@ -18,7 +18,7 @@ async def reset(dut):
     await RisingEdge(dut.clk)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=200, timeout_unit="us")
 async def stream_integrity_random_backpressure(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     await reset(dut)
@@ -41,7 +41,7 @@ async def stream_integrity_random_backpressure(dut):
     assert received == words, "stream corrupted under random backpressure"
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=100, timeout_unit="us")
 async def full_throughput_no_backpressure(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     await reset(dut)

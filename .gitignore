@@ -25,3 +25,6 @@ vivado*.str
 .vscode/
 *.swp
 .DS_Store
+
+# generated synthesis reports
+synth/

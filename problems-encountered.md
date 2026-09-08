@@ -5,6 +5,28 @@ entry: what broke, why, and the fix — so the same wall is only hit once.
 
 ---
 
+## 2026-09-08 — AXI-Stream BFM sampled the handshake one cycle too late
+
+**Symptom:** the skid buffer's random-backpressure test hung forever (26 min of
+CPU before it was killed), while the same buffer passed the no-backpressure test.
+The RTL looked correct on paper.
+
+**Cause:** the BFM sampled `tready`/`tvalid` in the ReadOnly phase *after*
+`await RisingEdge`. `tready` is combinational, so after the edge it already shows
+the *next* cycle's value. The source therefore mis-credited a beat, advanced past
+a word the DUT never accepted, and the sink then waited forever for a word that
+was never sent. Option 1 had passed only by luck of the random seed.
+
+**Fix:** sample the handshake in the ReadOnly phase *before* the edge it governs:
+`await ReadOnly()` -> read tready/tvalid -> `await RisingEdge`. Both BFM roles now
+follow this order (`tb/axis.py`).
+
+**Lesson:** for a valid/ready handshake, the beat is decided by the values
+present *going into* the edge. Sample before the edge, not after. Also: always put
+a `timeout_time` on cocotb tests so a deadlock fails in seconds instead of hanging.
+
+---
+
 ## 2026-09-08 — cocotb: reading a signal right after RisingEdge is stale
 
 **Symptom:** `sync_fifo` tests failed with `count 0 != model 1` even though the

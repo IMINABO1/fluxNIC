@@ -69,6 +69,39 @@ pick the winner.
 
 ---
 
+## 2026-09-08 — V1b Option 2: full skid buffer (CHOSEN)
+
+- Rewrote `axis_skid_buffer` as a full skid buffer: `s_tready = !skid_valid` is a
+  registered output, and a one-entry skid register catches the word arriving as
+  ready deasserts. Both handshake directions are now registered.
+- Chasing why it "deadlocked" uncovered a **testbench** bug, not an RTL bug: the
+  BFM sampled the handshake one cycle late (logged in problems). With that fixed,
+  *both* options pass, and all cocotb tests now carry a `timeout_time` watchdog.
+- Also moved the sim build tree to WSL-native ext4 (`scripts/test.sh`); a run that
+  took minutes on the /mnt/c 9p mount now takes ~0.03 s.
+
+**Decision (Option 1 vs Option 2):**
+| | ready path | FF (8-stage chain) | pipeline-depth timing |
+|---|---|---|---|
+| Opt 1 register slice | combinational (ripples) | 72 | degrades with depth |
+| Opt 2 skid buffer | registered (no ripple) | 144 | flat with depth |
+
+The measurable tell: Option 1's chain has a 31-cell pure combinational
+input->output path (the ready ripple); Option 2 registers ready so no such
+cross-stage path exists. fluxNIC is a deep pipeline aiming at 250 MHz, so a ready
+path that grows with stage count is disqualifying. **Kept Option 2** and paid the
+2x flip-flops. (Real Fmax to be confirmed on Vivado; yosys `ltp` mixes pipeline
+depth into its number, so it isn't a clean Fmax proxy -- the decision rests on the
+structural ready-path argument.)
+
+**Concepts learned:** why skid buffers exist (breaking the ready timing arc); the
+FF-vs-timing tradeoff; sampling a handshake on the correct side of the edge.
+
+**Next:** V2 — AXI-Stream FIFO (packs data+keep+last into the tested sync_fifo),
+then the Ethernet/IPv4/UDP parsers.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
