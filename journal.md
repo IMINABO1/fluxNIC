@@ -214,6 +214,23 @@ pipeline-depth PPA study.
 
 ---
 
+## 2026-09-08 — Pipeline-depth sweep + CI confirmed green
+
+- CI is green: the V6 run passed end to end (toolchain + regression + ECP5 synth).
+- Added `scripts/sweep.sh` and `docs/ppa_sweep.md`: sweep the skid-buffer chain
+  depth (1/2/4/8/16) and record LUT/FF/latency. Resources scale linearly (~13
+  LUT, 18 FF per stage), latency = one cycle/stage, throughput stays one
+  word/cycle at every depth (registered ready, no bubbles).
+- Honesty note: yosys `ltp` conflates pipeline traversal with combinational depth
+  for a fully-registered pipeline, so it is NOT used as an Fmax proxy. The
+  measured results are LUT/FF/latency; Fmax closure stays a Vivado milestone.
+- Needed `synth_ecp5 -noabc9` in the sweep to dodge an abc9 crash on the
+  parameterized chain.
+
+**Next:** V7 — a rate limiter (token bucket) as another action, then optional SVA.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.
