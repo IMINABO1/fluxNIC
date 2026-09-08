@@ -247,6 +247,22 @@ pipeline-depth PPA study.
 
 ---
 
+## 2026-09-08 — Full-system randomized verification
+
+- Added `random_rules_and_packets`: installs 12 random rules (forward/rewrite,
+  with occasional direct-mapped collisions where the later insert wins), streams
+  50 random UDP packets, and checks the entire egress stream — forwarded bytes,
+  output ports, rewritten dst ports — plus all four stat counters against a
+  Python reference model that replicates the flow table's exact hash and
+  collision behaviour.
+- **Full regression is now 27 tests across 10 modules, all passing.** This is the
+  strong backing for "verified with randomized cocotb testbenches": the whole NIC,
+  not just individual blocks, is model-checked end to end.
+
+**Next:** optional SVA; Fmax closure is the remaining Vivado milestone.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

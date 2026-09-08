@@ -148,3 +148,93 @@ async def rewrites_udp_dport(dut):
     dest, data = out[0]
     assert dest == 3, f"wrong egress port {dest}"
     assert data == bytes(expected), "UDP dst port not rewritten correctly (or frame corrupted)"
+
+
+def _hash48(key):
+    h = 0
+    for i in range(6):          # 48-bit key, 8-bit slots (matches flow_table)
+        h ^= (key >> (i * 8)) & 0xFF
+    return h & 0xFF
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="us")
+async def random_rules_and_packets(dut):
+    cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
+    await reset(dut)
+
+    rnd = random.Random(0x1234)
+    # small key space so packets both hit rules and miss, with occasional
+    # direct-mapped collisions (later insert wins) exercised
+    ips = [f"10.0.0.{n}" for n in range(1, 13)]
+    ports = [1000, 2000, 3000, 5001, 7000, 8080]
+
+    slots = {}  # reference model of the direct-mapped table: slot -> (key, action)
+
+    n_rules = 12
+    for _ in range(n_rules):
+        ip = rnd.choice(ips)
+        port = rnd.choice(ports)
+        out_port = rnd.randrange(8)
+        action = (out_port << 1)                 # forward, drop=0
+        if rnd.random() < 0.4:
+            action |= (1 << 6) | (rnd.choice([4444, 6000, 9999]) << 16)  # + rewrite
+        await insert_rule(dut, ip_int(ip), port, action)
+        slots[_hash48((ip_int(ip) << 16) | port)] = ((ip_int(ip) << 16) | port, action)
+
+    def decide(ip, port):
+        key = (ip_int(ip) << 16) | port
+        entry = slots.get(_hash48(key))
+        if entry is None or entry[0] != key:
+            return None                          # miss -> default drop
+        action = entry[1]
+        if action & 1:
+            return None                          # explicit drop
+        out_port = (action >> 1) & 7
+        rewrite = (action >> 6) & 1
+        new_dport = (action >> 16) & 0xFFFF
+        return out_port, rewrite, new_dport
+
+    frames = []
+    expected = []
+    exp_pkts = exp_hits = exp_drops = exp_fwd = 0
+    for _ in range(50):
+        ip = rnd.choice(ips)
+        port = rnd.choice(ports + [4242])        # 4242 never in a rule -> forces misses
+        frame = udp_ipv4_frame("ff:ff:ff:ff:ff:ff", "00:11:22:33:44:55",
+                               "10.0.0.254", ip, 1111, port,
+                               bytes([rnd.randrange(256) for _ in range(rnd.randrange(4, 24))]))
+        frames.append(frame)
+        exp_pkts += 1
+        d = decide(ip, port)
+        if d is None:
+            exp_drops += 1
+            key = (ip_int(ip) << 16) | port
+            entry = slots.get(_hash48(key))
+            if entry is not None and entry[0] == key:
+                exp_hits += 1                    # matched a drop rule (none here) -> still a hit
+        else:
+            out_port, rewrite, new_dport = d
+            exp_hits += 1
+            exp_fwd += 1
+            ef = bytearray(frame)
+            if rewrite:
+                ef[36:38] = struct.pack("!H", new_dport)
+            expected.append((out_port, bytes(ef)))
+
+    out = []
+    cocotb.start_soon(recv(dut, out, seed=99))
+    await send_frames(dut, frames, seed=5)
+
+    for _ in range(4000):
+        if len(out) >= len(expected):
+            break
+        await RisingEdge(dut.clk)
+
+    assert out == expected, (
+        f"random e2e mismatch: got {len(out)} pkts, expected {len(expected)}")
+
+    await ReadOnly()
+    assert int(dut.stat_pkts.value) == exp_pkts
+    assert int(dut.stat_hits.value) == exp_hits
+    assert int(dut.stat_drops.value) == exp_drops
+    assert int(dut.stat_forwarded.value) == exp_fwd
