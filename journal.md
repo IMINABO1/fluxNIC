@@ -4,6 +4,32 @@ A running log of what was built, why, and what was learned. Newest entries at th
 
 ---
 
+## 2026-09-08 — Toolchain fully working, autonomous build begins
+
+**Goal:** get build/test/synth/commit/push working without root, then work the
+milestone ladder autonomously.
+
+- **Simulators without sudo:** `verilator` and `iverilog` were not installable
+  via `apt` (no passwordless sudo). Bootstrapped **micromamba** (a static binary,
+  no root) and installed Verilator 5.052 + Icarus Verilog 13.0 from conda-forge
+  into an `eda` env. See `problems-encountered.md`.
+- **Synthesis:** added **yosys 0.68** to the same env. `synth_ecp5` gives real,
+  measured Lattice ECP5 resource numbers (LUT4 / flip-flops / carry / BRAM).
+  Fmax needs place-and-route (nextpnr/Vivado) which isn't available headless, so
+  Fmax stays a documented target to close later; resource counts are real now.
+- **Push:** the WSL git has no credentials, but Windows Git Credential Manager is
+  logged in as the repo owner. So commits + pushes go through Windows git; builds
+  and tests run in WSL. `.git` is shared on the Windows filesystem.
+- Added `scripts/env.sh` (PATH setup), `scripts/test.sh` (run one cocotb test),
+  `scripts/synth.sh` (yosys ECP5 resource report), `scripts/regress.sh` (full
+  regression).
+- **V0 counter** now verified (3/3) *and* synthesized: 8 flip-flops, 4 carry
+  cells (CCU2C), 2 LUT4 — exactly what an 8-bit up-counter should cost.
+
+**Next:** V1 — parameterized synchronous FIFO, then the AXI-Stream skid buffer.
+
+---
+
 ## 2026-09-01 — Project setup + V0 scaffold
 
 **Goal:** stand up the toolchain and get the first module simulating.

@@ -5,6 +5,49 @@ entry: what broke, why, and the fix — so the same wall is only hit once.
 
 ---
 
+## 2026-09-08 — verilator/iverilog need sudo; installed via conda-forge instead
+
+**Symptom:** `apt install verilator gtkwave` requires a password; this is an
+unattended session with no passwordless sudo.
+
+**Fix:** installed the simulators into a user-local micromamba env, no root:
+
+```bash
+curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj bin/micromamba
+export MAMBA_ROOT_PREFIX="$HOME/micromamba"
+micromamba create -y -n eda -c conda-forge verilator iverilog yosys
+```
+
+Cocotb (in the uv `.venv`) drives Verilator from this env via `scripts/env.sh`,
+which prepends `$HOME/micromamba/envs/eda/bin` to PATH.
+
+**Lesson:** conda-forge is the no-sudo escape hatch for EDA tools on a locked-down
+box.
+
+---
+
+## 2026-09-08 — nextpnr not available headless; Fmax deferred
+
+**Symptom:** `nextpnr-ecp5` is on neither conda-forge nor litex-hub in a form
+micromamba could solve here.
+
+**Impact:** yosys gives real *resource* numbers (LUT/FF/BRAM), but MHz-level Fmax
+needs place-and-route. Fmax is therefore a documented target, closed later with
+Vivado or a working nextpnr — not fabricated in the meantime.
+
+---
+
+## 2026-09-08 — yosys `stat -tech ecp5` is not valid
+
+**Symptom:** `ERROR: Unsupported technology: 'ecp5'` from `stat -tech ecp5`.
+
+**Cause:** after `synth_ecp5` the netlist is already ECP5 primitives, so `stat`
+needs no `-tech`. `-tech` only accepts a couple of generic libraries.
+
+**Fix:** call plain `stat` (see `scripts/synth.sh`).
+
+---
+
 ## 2026-09-01 — cocotb won't install on Python 3.14
 
 **Symptom:** `pip install cocotb` failed with
